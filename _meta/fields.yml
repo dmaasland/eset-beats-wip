@@ -1,0 +1,5 @@
+- key: eset
+  title: ESET Security Management Center
+  description: >
+    Module to receive logs from ESMC via syslog
+  fields:

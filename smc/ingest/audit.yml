@@ -1,0 +1,64 @@
+---
+description: Pipeline for parsing ESMC Audit Event logs
+
+processors:
+
+  - set:
+      field: event.type
+      value: access
+
+  - set:
+      field: event.category
+      value: authentication
+      if: ctx.eset.action != "Logout"
+
+  - set:
+      field: event.action
+      value: "{{eset.action}}"
+
+  - set:
+      field: event.outcome
+      value: success
+      if: ctx.eset.result == "Success"
+
+  - set:
+      field: event.outcome
+      value: failure
+      if: ctx.eset.result != "Success"
+
+  - set:
+      field: event.dataset
+      value: "{{event.module}}.audit"
+
+  - set:
+      field: evend.kind
+      value: event
+
+  - set:
+      field: destination.ip
+      value: "{{eset.src}}"
+
+  - set:
+      field: user.name
+      value: "{{eset.target}}"
+      if: ctx.eset.target != null
+
+  - set:
+      field: user.domain
+      value: "{{eset.domain}}"
+      if: ctx.eset.domain != null
+
+  - split:
+      field: eset.detail
+      separator: "'"
+      target_field: eset.target_temp
+      if: ctx.eset.target == null
+
+  - set:
+      field: user.name
+      value: "{{eset.target_temp.1}}"
+      if: ctx.eset.target == null
+
+  - remove:
+      field: eset.target.temp
+      ignore_missing: true

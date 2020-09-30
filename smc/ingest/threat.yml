@@ -1,0 +1,48 @@
+---
+description: Pipeline for parsing ESMC Audit_Event logs
+
+processors:
+
+  - set:
+      field: event.category
+      value: malware
+
+  - set:
+      field: event.dataset
+      value: "{{event.module}}.threat"
+
+  - set:
+      field: event.kind
+      value: alert
+
+  - set:
+      field: event.action
+      value: "{{eset.scannerID}}"
+
+  - set:
+      field: file.hash.sha1
+      value: "{{eset.hash}}"
+
+  - set:
+      field: process.executable
+      value: "{{eset.processName}}"
+
+  - split:
+      field: eset.accountName
+      target_field: eset.temp_account
+      separator: "\\\\"
+      if: ctx.eset.accountName != null
+
+  - set:
+      field: user.domain
+      value: "{{eset.temp_account.0}}"
+      if: ctx.eset.temp_account != null
+
+  - set:
+      field: user.name
+      value: "{{eset.temp_account.1}}"
+      if: ctx.eset.temp_account != null
+
+  - remove:
+      field: eset.temp_account
+      ignore_missing: true

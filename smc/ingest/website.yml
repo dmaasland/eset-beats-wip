@@ -1,0 +1,80 @@
+---
+description: Pipeline for parsing ESMC Filtered Website logs
+processors:
+
+  - set:
+      field: event.type
+      value: connection
+
+  - set:
+      field: event.category
+      value: web
+
+  - set:
+      field: event.kind
+      value: alert
+
+  - set:
+      field: event.dataset
+      value: "{{event.module}}.website"
+
+  - set:
+      field: event.action
+      value: "{{eset.eventDesc}}"
+
+  - set:
+      field: source.ip
+      value: "{{eset.src}}"
+    
+  - set:
+      field: destination.address
+      value: "{{eset.dst}}"
+
+  - set:
+      field: destination.ip
+      value: "{{eset.dst}}"
+      if: ctx.eset.targetAddressType == "IPv4" || ctx.eset.targetAddressType == "IPv6"
+
+  - geoip:
+      field: destination.ip
+      target_field: destination.geo
+      ignore_missing: true
+
+  - split:
+      field: eset.accountName
+      target_field: eset.temp_account
+      separator: "\\\\"
+      if: ctx.eset.accountName != null
+  
+  - set:
+      field: user.domain
+      value: "{{eset.temp_account.0}}"
+      if: ctx.eset.temp_account != null
+
+  - set:
+      field: user.name
+      value: "{{eset.temp_account.1}}"
+      if: ctx.eset.temp_account != null
+
+  - remove:
+      field: eset.temp_account
+      ignore_missing: true
+
+  - rename:
+      field: eset.processName
+      target_field: process.executable
+      ignore_missing: true
+
+  - set:
+      field: rule.name
+      value: "{{eset.ruleID}}"
+      if: ctx.eset.ruleID != null
+    
+  - set:
+      field: url.full
+      value: "{{eset.objectUri}}"
+
+
+  - set:
+      field: file.hash.sha1
+      value: "{{eset.hash}}"

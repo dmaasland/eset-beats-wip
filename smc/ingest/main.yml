@@ -1,0 +1,272 @@
+---
+description: Pipeline for parsing ESMC logs
+
+processors:
+  ## Pre-processing
+  # Remove process
+  - remove:
+      field: process
+      ignore_missing: true
+
+  # Split LEEF message and move to event.original
+  - split:
+      field: message
+      separator: "\\|"
+      target_field: leef.temp
+
+  - rename:
+      field: message
+      target_field: event.original
+
+  # Rename splitted LEEF fields
+  - rename:
+      field: leef.temp.0
+      target_field: leef_version
+
+  - rename:
+      field: leef.temp.0
+      target_field: observer.vendor
+
+  - rename:
+      field: leef.temp.0
+      target_field: observer.product
+
+  - rename:
+      field: leef.temp.0
+      target_field: observer.version
+
+  - rename:
+      field: leef.temp.0
+      target_field: message
+
+  # Parse LEEF message
+  - kv:
+      field: leef.temp.0
+      field_split: "\t"
+      value_split: "="
+      target_field: "eset"
+
+  - remove:
+      field: leef.temp
+
+  # Set Host info
+  - remove:
+      field:
+        - host.name
+        - hostname
+
+  - set:
+      field: host.name
+      value: "{{eset.deviceName}}"
+
+  - append:
+      field: host.ip
+      value: "{{eset.src}}"
+      if: ctx.eset.src != null
+
+  # Set severity
+  - set:
+      field: event.severity
+      value: "{{eset.sev}}"
+
+  # Fix times
+  - rename:
+      field: "@timestamp"
+      target_field: event.created
+
+  - date:
+      field: eset.devTime
+      formats:
+        - "MMM dd yyyy HH:mm:ss z"
+
+  ## Audit_Event   
+  - pipeline:
+      name: "{< IngestPipeline "audit" >}"
+      if: ctx.eset.cat == "ESET RA Audit Event"
+
+
+  ## Firewall Event
+  - pipeline:
+      name: "{< IngestPipeline "firewall" >}"
+      if: ctx.eset.cat == "ESET Firewall Event"
+
+  ## Threat Event
+  - pipeline:
+      name: "{< IngestPipeline "threat" >}"
+      if: ctx.eset.cat == "ESET Threat Event"
+
+  ## Threat Event
+  - pipeline:
+      name: "{< IngestPipeline "website" >}"
+      if: ctx.eset.cat == "ESET Filtered Website Event"
+
+
+
+#   # Pre-processing
+#   - json:
+#       field: message
+#       target_field: eset
+
+#   - rename:
+#       field: message
+#       target_field: event.original
+
+# #   - rename:
+# #       field: host
+# #       target_field: observer
+
+# #   - remove:
+# #       field:
+# #         - observer.architecture
+# #         - observer.containerized
+# #         - observer.id
+# #         - observer.os.codename
+
+#   - set:
+#       field: observer.vendor
+#       value: ESET
+  
+#   - set:
+#       field: observer.product
+#       value: Security Management Center# Pre-processing
+#   - json:
+#       field: message
+#       target_field: eset
+
+#   - rename:
+#       field: message
+#       target_field: event.original
+
+# #   - rename:
+# #       field: host
+# #       target_field: observer
+
+# #   - remove:
+# #       field:
+# #         - observer.architecture
+# #         - observer.containerized
+# #         - observer.id
+# #         - observer.os.codename
+
+#   - set:
+#       field: observer.vendor
+#       value: ESET
+  
+#   - set:
+#       field: observer.product
+#       value: Security Management Center
+
+#   - set:
+#       field: host.name
+#       value: "{{eset.hostname}}"
+    
+#   - append:
+#       field: host.ip
+#       value: "{{eset.ipv4}}"
+#       if: ctx.eset.ipv4 != null
+
+#   - append:
+#       field: host.ip
+#       value: "{{eset.ipv6}}"
+#       if: ctx.eset.ipv6 != null
+
+#   - set:
+#       field: host.id
+#       value: "{{eset.source_uuid}}"
+
+#   - rename:
+#       field: "@timestamp"
+#       target_field: event.created
+
+#   - date:
+#       field: eset.occured
+#       target_field: "@timestamp"
+#       formats: 
+#         - dd-MMM-yyyy HH:mm:ss
+#       timezone: UTC
+
+#   - remove:
+#       field: hostname
+
+#   # Audit_Event
+#   - pipeline:
+#       name: "{< IngestPipeline "audit" >}"
+#       if: ctx.eset.event_type == "Audit_Event" && ctx.eset.action != "Logout"
+
+#   # Firewall Event
+#   - pipeline:
+#       name: "{< IngestPipeline "firewall" >}"
+#       if: ctx.eset.event_type == "FirewallAggregated_Event"
+      
+# #   # Threat Event
+# #   - pipeline:
+# #       name: "{< IngestPipeline "threat" >}"
+# #       if: ctx.json_target.event_type == "Threat_Event"
+
+#   # Post-processing
+# #   - remove:
+# #       field: 
+# #         - json_target
+# #         - azure.enqueued_time
+# #       ignore_missing: true
+
+#   - set:
+#       field: host.name
+#       value: "{{eset.hostname}}"
+    
+#   - append:
+#       field: host.ip
+#       value: "{{eset.ipv4}}"
+#       if: ctx.eset.ipv4 != null
+
+#   - append:
+#       field: host.ip
+#       value: "{{eset.ipv6}}"
+#       if: ctx.eset.ipv6 != null
+
+#   - set:
+#       field: host.id
+#       value: "{{eset.source_uuid}}"
+
+#   - rename:
+#       field: "@timestamp"
+#       target_field: event.created
+
+#   - date:
+#       field: eset.occured
+#       target_field: "@timestamp"
+#       formats: 
+#         - dd-MMM-yyyy HH:mm:ss
+#       timezone: UTC
+
+#   - remove:
+#       field: hostname
+
+#   # Audit_Event
+#   - pipeline:
+#       name: "{< IngestPipeline "audit" >}"
+#       if: ctx.eset.event_type == "Audit_Event" && ctx.eset.action != "Logout"
+
+#   # Firewall Event
+#   - pipeline:
+#       name: "{< IngestPipeline "firewall" >}"
+#       if: ctx.eset.event_type == "FirewallAggregated_Event"
+      
+# #   # Threat Event
+# #   - pipeline:
+# #       name: "{< IngestPipeline "threat" >}"
+# #       if: ctx.json_target.event_type == "Threat_Event"
+
+#   # Post-processing
+# #   - remove:
+# #       field: 
+# #         - json_target
+# #         - azure.enqueued_time
+# #       ignore_missing: true
+
+on_failure:
+  - append:
+      field: error.message
+      value: "{{ _ingest.on_failure_message }}"
+
+      
